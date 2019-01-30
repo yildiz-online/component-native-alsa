@@ -15,7 +15,7 @@
  *
  *   You should have received a copy of the GNU Lesser General Public
  *   License along with this library; if not, write to the Free Software
- *   Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307 USA
+ *   Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301  USA
  *
  */
   
@@ -1589,7 +1589,7 @@ int snd_pcm_direct_set_timer_params(snd_pcm_direct_t *dmix)
 	if (dmix->tread) {
 		filter = (1<<SND_TIMER_EVENT_TICK) |
 			 dmix->timer_events;
-		snd_timer_params_set_filter(&params, filter);
+		INTERNAL(snd_timer_params_set_filter)(&params, filter);
 	}
 	ret = snd_timer_params(dmix->timer, &params);
 	if (ret < 0) {
@@ -1877,6 +1877,7 @@ int snd_pcm_direct_parse_open_conf(snd_config_t *root, snd_config_t *conf,
 	rec->max_periods = 0;
 	rec->var_periodsize = 0;
 	rec->direct_memory_access = 1;
+	rec->hw_ptr_alignment = SND_PCM_HW_PTR_ALIGNMENT_AUTO;
 
 	/* read defaults */
 	if (snd_config_search(root, "defaults.pcm.dmix_max_periods", &n) >= 0) {
@@ -1916,6 +1917,28 @@ int snd_pcm_direct_parse_open_conf(snd_config_t *root, snd_config_t *conf,
 				return -EINVAL;
 			}
 			rec->ipc_perm = perm;
+			continue;
+		}
+		if (strcmp(id, "hw_ptr_alignment") == 0) {
+			const char *str;
+			err = snd_config_get_string(n, &str);
+			if (err < 0) {
+				SNDERR("Invalid type for %s", id);
+				return -EINVAL;
+			}
+			if (strcmp(str, "no") == 0)
+				rec->hw_ptr_alignment = SND_PCM_HW_PTR_ALIGNMENT_NO;
+			else if (strcmp(str, "roundup") == 0)
+				rec->hw_ptr_alignment = SND_PCM_HW_PTR_ALIGNMENT_ROUNDUP;
+			else if (strcmp(str, "rounddown") == 0)
+				rec->hw_ptr_alignment = SND_PCM_HW_PTR_ALIGNMENT_ROUNDDOWN;
+			else if (strcmp(str, "auto") == 0)
+				rec->hw_ptr_alignment = SND_PCM_HW_PTR_ALIGNMENT_AUTO;
+			else {
+				SNDERR("The field hw_ptr_alignment is invalid : %s", str);
+				return -EINVAL;
+			}
+
 			continue;
 		}
 		if (strcmp(id, "ipc_gid") == 0) {

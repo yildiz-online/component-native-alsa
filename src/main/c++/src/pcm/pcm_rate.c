@@ -24,7 +24,7 @@
  *
  *   You should have received a copy of the GNU Lesser General Public
  *   License along with this library; if not, write to the Free Software
- *   Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307 USA
+ *   Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301  USA
  *
  */
 #include <inttypes.h>
@@ -970,9 +970,12 @@ static snd_pcm_sframes_t snd_pcm_rate_avail_update(snd_pcm_t *pcm)
 {
 	snd_pcm_rate_t *rate = pcm->private_data;
 	snd_pcm_t *slave = rate->gen.slave;
-	snd_pcm_uframes_t slave_size;
+	snd_pcm_sframes_t slave_size;
 
 	slave_size = snd_pcm_avail_update(slave);
+	if (slave_size < 0)
+		return slave_size;
+
 	if (pcm->stream == SND_PCM_STREAM_CAPTURE)
 		goto _capture;
 	snd_pcm_rate_sync_hwptr(pcm);

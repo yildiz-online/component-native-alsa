@@ -23,7 +23,7 @@
  *
  *   You should have received a copy of the GNU General Public License
  *   along with this program; if not, write to the Free Software
- *   Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307 USA
+ *   Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301  USA
  *
  */
 
@@ -673,7 +673,7 @@ int main(int argc, char *argv[])
 		printf("Capture:\n");
 		showstat(chandle, frames_in);
 		showinmax(in_max);
-		if (p_tstamp.tv_sec == p_tstamp.tv_sec &&
+		if (p_tstamp.tv_sec == c_tstamp.tv_sec &&
 		    p_tstamp.tv_usec == c_tstamp.tv_usec)
 			printf("Hardware sync\n");
 		snd_pcm_drop(chandle);

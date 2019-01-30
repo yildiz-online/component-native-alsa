@@ -28,7 +28,7 @@
  *
  *   You should have received a copy of the GNU Lesser General Public
  *   License along with this library; if not, write to the Free Software
- *   Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307 USA
+ *   Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301  USA
  *
  */
 
@@ -982,6 +982,7 @@ static int get_freestring(char **string, int id, input_t *input)
 		case '.':
 			if (!id)
 				break;
+			/* fall through */
 		case ' ':
 		case '\f':
 		case '\t':
@@ -1831,21 +1832,31 @@ int snd_config_top(snd_config_t **config)
 	return _snd_config_make(config, 0, SND_CONFIG_TYPE_COMPOUND);
 }
 
-static int snd_config_load1(snd_config_t *config, snd_input_t *in, int override)
+#ifndef DOC_HIDDEN
+int _snd_config_load_with_include(snd_config_t *config, snd_input_t *in,
+                                  int override, char *default_include_path)
 {
 	int err;
 	input_t input;
 	struct filedesc *fd, *fd_next;
 	assert(config && in);
 	fd = malloc(sizeof(*fd));
-	if (!fd)
-		return -ENOMEM;
+	if (!fd) {
+		err = -ENOMEM;
+		goto _end_inc;
+	}
 	fd->name = NULL;
 	fd->in = in;
 	fd->line = 1;
 	fd->column = 0;
 	fd->next = NULL;
 	INIT_LIST_HEAD(&fd->include_paths);
+	if (default_include_path) {
+		err = add_include_path(fd, default_include_path);
+		if (err < 0)
+			goto _end;
+		default_include_path = NULL;
+	}
 	input.current = fd;
 	input.unget = 0;
 	err = parse_defs(config, &input, 0, override);
@@ -1893,8 +1904,11 @@ static int snd_config_load1(snd_config_t *config, snd_input_t *in, int override)
 
 	free_include_paths(fd);
 	free(fd);
+ _end_inc:
+	free(default_include_path);
 	return err;
 }
+#endif
 
 /**
  * \brief Loads a configuration tree.
@@ -1914,7 +1928,7 @@ static int snd_config_load1(snd_config_t *config, snd_input_t *in, int override)
  */
 int snd_config_load(snd_config_t *config, snd_input_t *in)
 {
-	return snd_config_load1(config, in, 0);
+	return _snd_config_load_with_include(config, in, 0, NULL);
 }
 
 /**
@@ -1929,7 +1943,7 @@ int snd_config_load(snd_config_t *config, snd_input_t *in)
  */
 int snd_config_load_override(snd_config_t *config, snd_input_t *in)
 {
-	return snd_config_load1(config, in, 1);
+	return _snd_config_load_with_include(config, in, 1, NULL);
 }
 
 /**
@@ -3477,7 +3491,7 @@ static int snd_config_hooks_call(snd_config_t *root, snd_config_t *config, snd_c
 {
 	void *h = NULL;
 	snd_config_t *c, *func_conf = NULL;
-	char *buf = NULL;
+	char *buf = NULL, errbuf[256];
 	const char *lib = NULL, *func_name = NULL;
 	const char *str;
 	int (*func)(snd_config_t *root, snd_config_t *config, snd_config_t **dst, snd_config_t *private_data) = NULL;
@@ -3537,11 +3551,11 @@ static int snd_config_hooks_call(snd_config_t *root, snd_config_t *config, snd_c
 		buf[len-1] = '\0';
 		func_name = buf;
 	}
-	h = snd_dlopen(lib, RTLD_NOW);
+	h = INTERNAL(snd_dlopen)(lib, RTLD_NOW, errbuf, sizeof(errbuf));
 	func = h ? snd_dlsym(h, func_name, SND_DLSYM_VERSION(SND_CONFIG_DLSYM_VERSION_HOOK)) : NULL;
 	err = 0;
 	if (!h) {
-		SNDERR("Cannot open shared library %s", lib);
+		SNDERR("Cannot open shared library %s (%s)", lib, errbuf);
 		err = -ENOENT;
 	} else if (!func) {
 		SNDERR("symbol %s is not defined inside %s", func_name, lib);
@@ -4471,7 +4485,7 @@ static int _snd_config_evaluate(snd_config_t *src,
 {
 	int err;
 	if (pass == SND_CONFIG_WALK_PASS_PRE) {
-		char *buf = NULL;
+		char *buf = NULL, errbuf[256];
 		const char *lib = NULL, *func_name = NULL;
 		const char *str;
 		int (*func)(snd_config_t **dst, snd_config_t *root,
@@ -4530,12 +4544,12 @@ static int _snd_config_evaluate(snd_config_t *src,
 			buf[len-1] = '\0';
 			func_name = buf;
 		}
-		h = snd_dlopen(lib, RTLD_NOW);
+		h = INTERNAL(snd_dlopen)(lib, RTLD_NOW, errbuf, sizeof(errbuf));
 		if (h)
 			func = snd_dlsym(h, func_name, SND_DLSYM_VERSION(SND_CONFIG_DLSYM_VERSION_EVALUATE));
 		err = 0;
 		if (!h) {
-			SNDERR("Cannot open shared library %s", lib);
+			SNDERR("Cannot open shared library %s (%s)", lib, errbuf);
 			err = -ENOENT;
 			goto _errbuf;
 		} else if (!func) {

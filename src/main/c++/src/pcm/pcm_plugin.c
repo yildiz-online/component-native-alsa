@@ -23,7 +23,7 @@
  *
  *   You should have received a copy of the GNU Lesser General Public
  *   License along with this library; if not, write to the Free Software
- *   Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307 USA
+ *   Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301  USA
  *
  */
 
@@ -587,7 +587,7 @@ int snd_pcm_plugin_may_wait_for_avail_min(snd_pcm_t *pcm,
 		if (available < 0)
 			return 0;
 
-		if (available >= pcm->avail_min)
+		if ((snd_pcm_uframes_t)available >= pcm->avail_min)
 			/* don't wait at all. As we can't configure avail_min
 			 * of slave to 0 return here
 			 */

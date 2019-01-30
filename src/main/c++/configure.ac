@@ -1,6 +1,6 @@
 dnl Process this file with autoconf to produce a configure script.
 AC_PREREQ(2.59)
-AC_INIT(alsa-lib, 1.1.5)
+AC_INIT(alsa-lib, 1.1.8)
 
 AC_CONFIG_SRCDIR([src/control/control.c])
 AC_CONFIG_MACRO_DIR([m4])
@@ -394,28 +394,50 @@ AC_ARG_ENABLE(topology,
   AS_HELP_STRING([--disable-topology], [disable the DSP topology component]),
   [build_topology="$enableval"], [build_topology="yes"])
 AC_ARG_ENABLE(alisp,
-  AS_HELP_STRING([--disable-alisp], [disable the alisp component]),
-  [build_alisp="$enableval"], [build_alisp="yes"])
+  AS_HELP_STRING([--enable-alisp], [enable the alisp component]),
+  [build_alisp="$enableval"], [build_alisp="no"])
 test "$softfloat" = "yes" && build_alisp="no"
 AC_ARG_ENABLE(old-symbols,
   AS_HELP_STRING([--disable-old-symbols], [disable old obsoleted symbols]),
   [keep_old_symbols="$enableval"], [keep_old_symbols="yes"])
 AM_CONDITIONAL([KEEP_OLD_SYMBOLS], [test x$keep_old_symbols = xyes])
 
+AC_ARG_ENABLE(mixer-modules,
+  AS_HELP_STRING([--enable-mixer-modules], [enable the additional mixer modules (experimental)]),
+  [build_mixer_modules="$enableval"], [build_mixer_modules="no"])
+
+AC_ARG_ENABLE(mixer-pymods,
+  AS_HELP_STRING([--enable-mixer-pymods], [enable the mixer python modules (experimental)]),
+  [build_mixer_pymodules="$enableval"], [build_mixer_pymodules="no"])
+
 AC_ARG_ENABLE(python,
   AS_HELP_STRING([--disable-python], [disable the python components]),
   [build_python="$enableval"], [build_python="yes"])
+
+AC_ARG_ENABLE(python2,
+  AS_HELP_STRING([--enable-python2], [prefer python2]),
+  [build_python2="$enableval"], [build_python2="no"])
 PYTHON_LIBS=""
 PYTHON_INCLUDES=""
-if test "$build_python" = "yes"; then
+if test "$build_python" = "yes" -a "$build_mixer_pymodules" = "yes"; then
+  pythonlibs0=
+  pythoninc0=
+  if test "$build_python2" != "yes"; then
+    pythonlibs0=$(python3-config --libs)
+    pythoninc0=$(python3-config --includes)
+  fi
+  if test -z "$pythonlibs0"; then
+    pythonlibs0=$(python-config --libs)
+    pythoninc0=$(python-config --includes)
+  fi
   AC_ARG_WITH(pythonlibs,
     AS_HELP_STRING([--with-pythonlibs=ldflags],
       [specify python libraries (-lpthread -lm -ldl -lpython2.4)]),
-    pythonlibs="$withval", pythonlibs=`python-config --libs`)
+    pythonlibs="$withval", pythonlibs=$pythonlibs0)
   AC_ARG_WITH(pythonincludes,
     AS_HELP_STRING([--with-pythonincludes=Cflags],
       [specify python C header files (-I/usr/include/python)]),
-    pythonincludes="$withval", pythonincludes=`python-config --includes`)
+    pythonincludes="$withval", pythonincludes=$pythoninc0)
   if test -z "$pythonlibs"; then
     echo "Unable to determine python libraries! Probably python-config is not"
     echo "available on this system. Please, use --with-pythonlibs and"
@@ -425,6 +447,9 @@ if test "$build_python" = "yes"; then
     PYTHON_LIBS="$pythonlibs"
     PYTHON_INCLUDES="$pythonincludes"
   fi
+fi
+if test "$build_python" != "yes"; then
+  build_mixer_pymodules=
 fi
 AC_SUBST(PYTHON_LIBS)
 AC_SUBST(PYTHON_INCLUDES)
@@ -437,7 +462,8 @@ AM_CONDITIONAL([BUILD_SEQ], [test x$build_seq = xyes])
 AM_CONDITIONAL([BUILD_UCM], [test x$build_ucm = xyes])
 AM_CONDITIONAL([BUILD_TOPOLOGY], [test x$build_topology = xyes])
 AM_CONDITIONAL([BUILD_ALISP], [test x$build_alisp = xyes])
-AM_CONDITIONAL([BUILD_PYTHON], [test x$build_python = xyes])
+AM_CONDITIONAL([BUILD_MIXER_MODULES], [test x$build_mixer_modules = xyes])
+AM_CONDITIONAL([BUILD_MIXER_PYMODULES], [test x$build_mixer_pymodules = xyes])
 
 if test "$build_mixer" = "yes"; then
   AC_DEFINE([BUILD_MIXER], "1", [Build mixer component])
@@ -687,23 +713,64 @@ AC_OUTPUT(Makefile doc/Makefile doc/pictures/Makefile doc/doxygen.cfg \
 	  src/rawmidi/Makefile src/timer/Makefile \
           src/hwdep/Makefile src/seq/Makefile src/ucm/Makefile \
           src/alisp/Makefile src/topology/Makefile \
-	  src/conf/Makefile src/conf/alsa.conf.d/Makefile \
+	  src/conf/Makefile \
 	  src/conf/cards/Makefile \
 	  src/conf/pcm/Makefile \
 	  src/conf/ucm/Makefile \
+	  src/conf/ucm/ASUSTeKCOMPUTERINC.-T100HAN-1.0-T100HAN/Makefile \
+	  src/conf/ucm/broadwell-rt286/Makefile \
+	  src/conf/ucm/broxton-rt298/Makefile \
+	  src/conf/ucm/bytcht-es8316/Makefile \
+	  src/conf/ucm/bytcht-es8316-mono-spk-in1-mic/Makefile \
+	  src/conf/ucm/bytcht-es8316-mono-spk-in2-mic/Makefile \
+	  src/conf/ucm/bytcht-es8316-stereo-spk-in1-mic/Makefile \
+	  src/conf/ucm/bytcht-es8316-stereo-spk-in2-mic/Makefile \
+	  src/conf/ucm/bytcr-rt5640/Makefile \
+	  src/conf/ucm/bytcr-rt5640-mono-spk-dmic1-mic/Makefile \
+	  src/conf/ucm/bytcr-rt5640-mono-spk-in1-mic/Makefile \
+	  src/conf/ucm/bytcr-rt5640-mono-spk-in3-mic/Makefile \
+	  src/conf/ucm/bytcr-rt5640-stereo-spk-dmic1-mic/Makefile \
+	  src/conf/ucm/bytcr-rt5640-stereo-spk-in1-mic/Makefile \
+	  src/conf/ucm/bytcr-rt5640-stereo-spk-in3-mic/Makefile \
+	  src/conf/ucm/bytcr-rt5651/Makefile \
+	  src/conf/ucm/bytcr-rt5651-mono-spk-in1-mic/Makefile \
+	  src/conf/ucm/bytcr-rt5651-mono-spk-in2-mic/Makefile \
+	  src/conf/ucm/bytcr-rt5651-mono-spk-in2-mic-hp-swapped/Makefile \
+	  src/conf/ucm/bytcr-rt5651-stereo-spk-dmic-mic/Makefile \
+	  src/conf/ucm/bytcr-rt5651-stereo-spk-in1-mic/Makefile \
+	  src/conf/ucm/bytcr-rt5651-stereo-spk-in2-mic/Makefile \
+	  src/conf/ucm/bytcr-rt5651-stereo-spk-in12-mic/Makefile \
+	  src/conf/ucm/chtnau8824/Makefile \
+	  src/conf/ucm/chtrt5645/Makefile \
+	  src/conf/ucm/chtrt5645-mono-speaker-analog-mic/Makefile \
+	  src/conf/ucm/chtrt5650/Makefile \
+	  src/conf/ucm/cube-i1_TF-Defaultstring-CherryTrailCR/Makefile \
 	  src/conf/ucm/DAISY-I2S/Makefile \
+	  src/conf/ucm/DB410c/Makefile \
+	  src/conf/ucm/Dell-WD15-Dock/Makefile \
+	  src/conf/ucm/GoogleNyan/Makefile \
+	  src/conf/ucm/gpd-win-pocket-rt5645/Makefile \
+	  src/conf/ucm/HDAudio-Gigabyte-ALC1220DualCodecs/Makefile \
+	  src/conf/ucm/HDAudio-Lenovo-DualCodecs/Makefile \
+	  src/conf/ucm/kblrt5660/Makefile \
+	  src/conf/ucm/LENOVO-80XF-LenovoMIIX320_10ICR-LNVNB161216/Makefile \
 	  src/conf/ucm/PandaBoard/Makefile \
 	  src/conf/ucm/PandaBoardES/Makefile \
-	  src/conf/ucm/SDP4430/Makefile \
-	  src/conf/ucm/tegraalc5632/Makefile \
 	  src/conf/ucm/PAZ00/Makefile \
-	  src/conf/ucm/GoogleNyan/Makefile \
-	  src/conf/ucm/broadwell-rt286/Makefile \
+	  src/conf/ucm/PIPO-W2S-Defaultstring-CherryTrailCR/Makefile \
+	  src/conf/ucm/SDP4430/Makefile \
 	  src/conf/ucm/skylake-rt286/Makefile \
+	  src/conf/ucm/TECLAST-X80Pro-Defaultstring-CherryTrailCR/Makefile \
+	  src/conf/ucm/tegraalc5632/Makefile \
 	  src/conf/ucm/VEYRON-I2S/Makefile \
-	  src/conf/ucm/chtrt5645/Makefile \
-	  src/conf/ucm/DB410c/Makefile \
-	  src/conf/ucm/bytcr-rt5651/Makefile \
+	  src/conf/ucm/codecs/Makefile \
+	  src/conf/ucm/codecs/es8316/Makefile \
+	  src/conf/ucm/codecs/nau8824/Makefile \
+	  src/conf/ucm/codecs/rt5640/Makefile \
+	  src/conf/ucm/codecs/rt5645/Makefile \
+	  src/conf/ucm/codecs/rt5651/Makefile \
+	  src/conf/ucm/platforms/Makefile \
+	  src/conf/ucm/platforms/bytcr/Makefile \
 	  src/conf/topology/Makefile \
 	  src/conf/topology/broadwell/Makefile \
 	  modules/Makefile modules/mixer/Makefile modules/mixer/simple/Makefile \
@@ -711,7 +778,6 @@ AC_OUTPUT(Makefile doc/Makefile doc/pictures/Makefile doc/doxygen.cfg \
 	  src/conf/topology/bxtrt298/Makefile \
 	  alsalisp/Makefile aserver/Makefile \
 	  test/Makefile test/lsb/Makefile \
-	  src/conf/ucm/broxton-rt298/Makefile \
 	  utils/Makefile utils/alsa-lib.spec utils/alsa.pc)
 
 dnl Create asoundlib.h dynamically according to configure options

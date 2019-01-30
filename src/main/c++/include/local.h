@@ -15,7 +15,7 @@
  *
  *   You should have received a copy of the GNU Lesser General Public
  *   License along with this library; if not, write to the Free Software
- *   Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307 USA
+ *   Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301  USA
  *
  */
 
@@ -354,11 +354,18 @@ int snd_config_search_alias_hooks(snd_config_t *config,
 
 int _snd_conf_generic_id(const char *id);
 
+int _snd_config_load_with_include(snd_config_t *config, snd_input_t *in,
+				  int override, char *default_include_path);
+
 /* convenience macros */
 #define ARRAY_SIZE(x) (sizeof(x) / sizeof(x[0]))
 
 #define container_of(ptr, type, member) ({                      \
 	 const typeof( ((type *)0)->member ) *__mptr = (ptr);    \
 	(type *)( (char *)__mptr - offsetof(type,member) );})
+
+#ifdef INTERNAL
+void *INTERNAL(snd_dlopen)(const char *name, int mode, char *errbuf, size_t errbuflen);
+#endif
 
 #endif

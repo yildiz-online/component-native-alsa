@@ -23,7 +23,7 @@
  *
  *   You should have received a copy of the GNU Lesser General Public
  *   License along with this library; if not, write to the Free Software
- *   Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307 USA
+ *   Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301  USA
  *
  */
   
@@ -459,7 +459,7 @@ static int snd_pcm_hw_change_timer(snd_pcm_t *pcm, int enable)
 		}
 		snd_timer_params_set_auto_start(&params, 1);
 		snd_timer_params_set_ticks(&params, 1);
-		snd_timer_params_set_filter(&params, (1<<SND_TIMER_EVENT_TICK) |
+		INTERNAL(snd_timer_params_set_filter)(&params, (1<<SND_TIMER_EVENT_TICK) |
 					    suspend | resume);
 		err = snd_timer_params(hw->period_timer, &params);
 		if (err < 0) {
@@ -1004,16 +1004,28 @@ static int map_status_and_control_data(snd_pcm_t *pcm, bool force_fallback)
 		hw->sync_ptr = NULL;
 	}
 
-	/* Initialize the data. */
-	hw->mmap_control->appl_ptr = 0;
-	hw->mmap_control->avail_min = 1;
+	/* do not initialize in case of append and keep the values from the
+	 * kernel
+	 */
+	if (!(pcm->mode & SND_PCM_APPEND)) {
+		/* Initialize the data. */
+		hw->mmap_control->appl_ptr = 0;
+		hw->mmap_control->avail_min = 1;
+	}
 	snd_pcm_set_hw_ptr(pcm, &hw->mmap_status->hw_ptr, hw->fd,
 			   SNDRV_PCM_MMAP_OFFSET_STATUS +
 				offsetof(struct snd_pcm_mmap_status, hw_ptr));
 	snd_pcm_set_appl_ptr(pcm, &hw->mmap_control->appl_ptr, hw->fd,
 			     SNDRV_PCM_MMAP_OFFSET_CONTROL);
 	if (hw->mmap_control_fallbacked) {
-		err = sync_ptr1(hw, 0);
+		unsigned int flags = 0;
+		/* read appl_ptr and avail_min from kernel when device opened
+		 * with SND_PCM_APPEND flag
+		 */
+		if (pcm->mode & SND_PCM_APPEND)
+			flags = SNDRV_PCM_SYNC_PTR_APPL |
+				SNDRV_PCM_SYNC_PTR_AVAIL_MIN;
+		err = sync_ptr1(hw, flags);
 		if (err < 0)
 			return err;
 	}
@@ -1187,6 +1199,7 @@ snd_pcm_query_chmaps_from_hw(int card, int dev, int subdev,
 	snd_ctl_t *ctl;
 	snd_ctl_elem_id_t id = {0};
 	unsigned int tlv[2048], *start;
+	unsigned int type;
 	snd_pcm_chmap_query_t **map;
 	int i, ret, nums;
 
@@ -1211,9 +1224,10 @@ snd_pcm_query_chmaps_from_hw(int card, int dev, int subdev,
 	/* FIXME: the parser below assumes that the TLV only contains
 	 * chmap-related blocks
 	 */
-	if (tlv[0] != SND_CTL_TLVT_CONTAINER) {
-		if (!is_chmap_type(tlv[0])) {
-			SYSMSG("Invalid TLV type %d\n", tlv[0]);
+	type = tlv[SNDRV_CTL_TLVO_TYPE];
+	if (type != SND_CTL_TLVT_CONTAINER) {
+		if (!is_chmap_type(type)) {
+			SYSMSG("Invalid TLV type %d\n", type);
 			return NULL;
 		}
 		start = tlv;
@@ -1222,7 +1236,7 @@ snd_pcm_query_chmaps_from_hw(int card, int dev, int subdev,
 		unsigned int *p;
 		int size;
 		start = tlv + 2;
-		size = tlv[1];
+		size = tlv[SNDRV_CTL_TLVO_LEN];
 		nums = 0;
 		for (p = start; size > 0; ) {
 			if (!is_chmap_type(p[0])) {
@@ -1539,6 +1553,8 @@ int snd_pcm_hw_open_fd(snd_pcm_t **pcmp, const char *name, int fd,
 		mode |= SND_PCM_NONBLOCK;
 	if (fmode & O_ASYNC)
 		mode |= SND_PCM_ASYNC;
+	if (fmode & O_APPEND)
+		mode |= SND_PCM_APPEND;
 
 	if (ioctl(fd, SNDRV_PCM_IOCTL_PVERSION, &ver) < 0) {
 		ret = -errno;

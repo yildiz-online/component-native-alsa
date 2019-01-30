@@ -22,7 +22,7 @@
  *
  *   You should have received a copy of the GNU Lesser General Public
  *   License along with this library; if not, write to the Free Software
- *   Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307 USA
+ *   Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301  USA
  *
  */
   
@@ -137,6 +137,17 @@ static const snd_pcm_format_t linear_preferred_formats[] = {
 	SND_PCM_FORMAT_U24_BE,
 	SND_PCM_FORMAT_S24_LE,
 	SND_PCM_FORMAT_U24_LE,
+#endif
+#ifdef SND_LITTLE_ENDIAN
+	SND_PCM_FORMAT_S20_LE,
+	SND_PCM_FORMAT_U20_LE,
+	SND_PCM_FORMAT_S20_BE,
+	SND_PCM_FORMAT_U20_BE,
+#else
+	SND_PCM_FORMAT_S20_BE,
+	SND_PCM_FORMAT_U20_BE,
+	SND_PCM_FORMAT_S20_LE,
+	SND_PCM_FORMAT_U20_LE,
 #endif
 #ifdef SND_LITTLE_ENDIAN
 	SND_PCM_FORMAT_S24_3LE,

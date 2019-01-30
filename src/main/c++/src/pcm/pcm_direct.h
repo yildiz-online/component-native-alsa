@@ -15,11 +15,12 @@
  *
  *   You should have received a copy of the GNU Lesser General Public
  *   License along with this library; if not, write to the Free Software
- *   Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307 USA
+ *   Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301  USA
  *
  */
 
 #include "pcm_local.h"  
+#include "../timer/timer_local.h"
 
 #define DIRECT_IPC_SEMS         1
 #define DIRECT_IPC_SEM_CLIENT   0
@@ -48,6 +49,13 @@ typedef void (mix_areas_u8_t)(unsigned int size,
 			      volatile unsigned char *dst, unsigned char *src,
 			      volatile signed int *sum, size_t dst_step,
 			      size_t src_step, size_t sum_step);
+
+typedef enum snd_pcm_direct_hw_ptr_alignment {
+	SND_PCM_HW_PTR_ALIGNMENT_NO = 0,	/* use the hw_ptr as is and do no rounding */
+	SND_PCM_HW_PTR_ALIGNMENT_ROUNDUP = 1,	/* round the slave_appl_ptr up to slave_period */
+	SND_PCM_HW_PTR_ALIGNMENT_ROUNDDOWN = 2,	/* round slave_hw_ptr and slave_appl_ptr down to slave_period */
+	SND_PCM_HW_PTR_ALIGNMENT_AUTO = 3	/* automatic selection */
+} snd_pcm_direct_hw_ptr_alignment_t;
 
 struct slave_params {
 	snd_pcm_format_t format;
@@ -159,6 +167,7 @@ struct snd_pcm_direct {
 	unsigned int *bindings;
 	unsigned int recoveries;	/* mirror of executed recoveries on slave */
 	int direct_memory_access;	/* use arch-optimized buffer RW */
+	snd_pcm_direct_hw_ptr_alignment_t hw_ptr_alignment;
 	union {
 		struct {
 			int shmid_sum;			/* IPC global sum ring buffer memory identification */
@@ -341,6 +350,7 @@ struct snd_pcm_direct_open_conf {
 	int max_periods;
 	int var_periodsize;
 	int direct_memory_access;
+	snd_pcm_direct_hw_ptr_alignment_t hw_ptr_alignment;
 	snd_config_t *slave;
 	snd_config_t *bindings;
 };

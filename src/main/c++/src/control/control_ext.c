@@ -23,7 +23,7 @@
  *
  *   You should have received a copy of the GNU Lesser General Public
  *   License along with this library; if not, write to the Free Software
- *   Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307 USA
+ *   Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301  USA
  *
  */
 
@@ -484,7 +484,7 @@ static const snd_ctl_ops_t snd_ctl_ext_ops = {
 	.pcm_next_device = snd_ctl_ext_next_device,
 	.pcm_info = snd_ctl_ext_pcm_info,
 	.pcm_prefer_subdevice = snd_ctl_ext_prefer_subdevice,
-	.rawmidi_next_device = snd_ctl_rawmidi_next_device,
+	.rawmidi_next_device = snd_ctl_ext_next_device,
 	.rawmidi_info = snd_ctl_ext_rawmidi_info,
 	.rawmidi_prefer_subdevice = snd_ctl_ext_prefer_subdevice,
 	.set_power_state = snd_ctl_ext_set_power_state,

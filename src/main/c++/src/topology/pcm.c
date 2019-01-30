@@ -62,7 +62,7 @@ struct tplg_elem *lookup_pcm_dai_stream(struct list_head *base, const char* id)
 }
 
 /* copy referenced caps to the parent (pcm or be dai) */
-static void copy_stream_caps(const char *id,
+static void copy_stream_caps(const char *id ATTRIBUTE_UNUSED,
 	struct snd_soc_tplg_stream_caps *caps, struct tplg_elem *ref_elem)
 {
 	struct snd_soc_tplg_stream_caps *ref_caps = ref_elem->stream_caps;
@@ -852,7 +852,8 @@ int tplg_parse_dai(snd_tplg_t *tplg,
 }
 
 /* parse physical link runtime supported HW configs in text conf file */
-static int parse_hw_config_refs(snd_tplg_t *tplg, snd_config_t *cfg,
+static int parse_hw_config_refs(snd_tplg_t *tplg ATTRIBUTE_UNUSED,
+				snd_config_t *cfg,
 				struct tplg_elem *elem)
 {
 	struct snd_soc_tplg_link_config *link = elem->link;
@@ -882,6 +883,7 @@ static int parse_hw_config_refs(snd_tplg_t *tplg, snd_config_t *cfg,
 	/* refer to a list of HW configs */
 	snd_config_for_each(i, next, cfg) {
 		const char *val;
+		int err;
 
 		n = snd_config_iterator_entry(i);
 		if (snd_config_get_string(n, &val) < 0)
@@ -893,7 +895,9 @@ static int parse_hw_config_refs(snd_tplg_t *tplg, snd_config_t *cfg,
 		}
 
 		link->num_hw_configs++;
-		return tplg_ref_add(elem, SND_TPLG_TYPE_HW_CONFIG, val);
+		err = tplg_ref_add(elem, SND_TPLG_TYPE_HW_CONFIG, val);
+		if (err < 0)
+			return err;
 	}
 
 	return 0;
@@ -1122,7 +1126,8 @@ int tplg_parse_hw_config(snd_tplg_t *tplg, snd_config_t *cfg,
 			continue;
 		}
 
-		if (strcmp(id, "format") == 0) {
+		if (strcmp(id, "format") == 0 ||
+		    strcmp(id, "fmt") == 0) {
 			if (snd_config_get_string(n, &val) < 0)
 				return -EINVAL;
 
@@ -1133,16 +1138,29 @@ int tplg_parse_hw_config(snd_tplg_t *tplg, snd_config_t *cfg,
 			continue;
 		}
 
-		if (strcmp(id, "bclk") == 0) {
+		if (strcmp(id, "bclk") == 0 ||
+		    strcmp(id, "bclk_master") == 0) {
 			if (snd_config_get_string(n, &val) < 0)
 				return -EINVAL;
 
-			if (!strcmp(val, "master"))
-				hw_cfg->bclk_master = true;
+			if (!strcmp(val, "master")) {
+				/* For backwards capability,
+				 * "master" == "codec is slave"
+				 */
+				SNDERR("warning: deprecated bclk value '%s'\n",
+				       val);
+
+				hw_cfg->bclk_master = SND_SOC_TPLG_BCLK_CS;
+			} else if (!strcmp(val, "codec_slave")) {
+				hw_cfg->bclk_master = SND_SOC_TPLG_BCLK_CS;
+			} else if (!strcmp(val, "codec_master")) {
+				hw_cfg->bclk_master = SND_SOC_TPLG_BCLK_CM;
+			}
 			continue;
 		}
 
-		if (strcmp(id, "bclk_freq") == 0) {
+		if (strcmp(id, "bclk_freq") == 0 ||
+		    strcmp(id, "bclk_rate") == 0) {
 			if (snd_config_get_string(n, &val) < 0)
 				return -EINVAL;
 
@@ -1150,7 +1168,8 @@ int tplg_parse_hw_config(snd_tplg_t *tplg, snd_config_t *cfg,
 			continue;
 		}
 
-		if (strcmp(id, "bclk_invert") == 0) {
+		if (strcmp(id, "bclk_invert") == 0 ||
+		    strcmp(id, "invert_bclk") == 0) {
 			if (snd_config_get_string(n, &val) < 0)
 				return -EINVAL;
 
@@ -1159,16 +1178,29 @@ int tplg_parse_hw_config(snd_tplg_t *tplg, snd_config_t *cfg,
 			continue;
 		}
 
-		if (strcmp(id, "fsync") == 0) {
+		if (strcmp(id, "fsync") == 0 ||
+		    strcmp(id, "fsync_master") == 0) {
 			if (snd_config_get_string(n, &val) < 0)
 				return -EINVAL;
 
-			if (!strcmp(val, "master"))
-				hw_cfg->fsync_master = true;
+			if (!strcmp(val, "master")) {
+				/* For backwards capability,
+				 * "master" == "codec is slave"
+				 */
+				SNDERR("warning: deprecated fsync value '%s'\n",
+				       val);
+
+				hw_cfg->fsync_master = SND_SOC_TPLG_FSYNC_CS;
+			} else if (!strcmp(val, "codec_slave")) {
+				hw_cfg->fsync_master = SND_SOC_TPLG_FSYNC_CS;
+			} else if (!strcmp(val, "codec_master")) {
+				hw_cfg->fsync_master = SND_SOC_TPLG_FSYNC_CM;
+			}
 			continue;
 		}
 
-		if (strcmp(id, "fsync_invert") == 0) {
+		if (strcmp(id, "fsync_invert") == 0 ||
+		    strcmp(id, "invert_fsync") == 0) {
 			if (snd_config_get_string(n, &val) < 0)
 				return -EINVAL;
 
@@ -1177,7 +1209,8 @@ int tplg_parse_hw_config(snd_tplg_t *tplg, snd_config_t *cfg,
 			continue;
 		}
 
-		if (strcmp(id, "fsync_freq") == 0) {
+		if (strcmp(id, "fsync_freq") == 0 ||
+		    strcmp(id, "fsync_rate") == 0) {
 			if (snd_config_get_string(n, &val) < 0)
 				return -EINVAL;
 
@@ -1185,7 +1218,8 @@ int tplg_parse_hw_config(snd_tplg_t *tplg, snd_config_t *cfg,
 			continue;
 		}
 
-		if (strcmp(id, "mclk_freq") == 0) {
+		if (strcmp(id, "mclk_freq") == 0 ||
+		    strcmp(id, "mclk_rate") == 0) {
 			if (snd_config_get_string(n, &val) < 0)
 				return -EINVAL;
 
@@ -1193,21 +1227,38 @@ int tplg_parse_hw_config(snd_tplg_t *tplg, snd_config_t *cfg,
 			continue;
 		}
 
-		if (strcmp(id, "mclk") == 0) {
+		if (strcmp(id, "mclk") == 0 ||
+		    strcmp(id, "mclk_direction") == 0) {
 			if (snd_config_get_string(n, &val) < 0)
 				return -EINVAL;
 
-			if (!strcmp(val, "master"))
-				hw_cfg->mclk_direction = true;
+			if (!strcmp(val, "master")) {
+				/* For backwards capability,
+				 * "master" == "for codec, mclk is input"
+				 */
+				SNDERR("warning: deprecated mclk value '%s'\n",
+				       val);
+
+				hw_cfg->mclk_direction = SND_SOC_TPLG_MCLK_CI;
+			} else if (!strcmp(val, "codec_mclk_in")) {
+				hw_cfg->mclk_direction = SND_SOC_TPLG_MCLK_CI;
+			} else if (!strcmp(val, "codec_mclk_out")) {
+				hw_cfg->mclk_direction = SND_SOC_TPLG_MCLK_CO;
+			}
 			continue;
 		}
 
-		if (strcmp(id, "pm_gate_clocks") == 0) {
+		if (strcmp(id, "pm_gate_clocks") == 0 ||
+		    strcmp(id, "clock_gated") == 0) {
 			if (snd_config_get_string(n, &val) < 0)
 				return -EINVAL;
 
 			if (!strcmp(val, "true"))
-				hw_cfg->clock_gated = true;
+				hw_cfg->clock_gated =
+					SND_SOC_TPLG_DAI_CLK_GATE_GATED;
+			else
+				hw_cfg->clock_gated =
+					SND_SOC_TPLG_DAI_CLK_GATE_CONT;
 			continue;
 		}
 
@@ -1367,7 +1418,7 @@ int tplg_add_pcm_object(snd_tplg_t *tplg, snd_tplg_obj_template_t *t)
 static int set_link_hw_config(struct snd_soc_tplg_hw_config *cfg,
 			struct snd_tplg_hw_config_template *tpl)
 {
-	int i;
+	unsigned int i;
 
 	cfg->size = sizeof(*cfg);
 	cfg->id = tpl->id;
@@ -1410,7 +1461,7 @@ int tplg_add_link_object(snd_tplg_t *tplg, snd_tplg_obj_template_t *t)
 	struct snd_tplg_link_template *link_tpl = t->link;
 	struct snd_soc_tplg_link_config *link, *_link;
 	struct tplg_elem *elem;
-	int i;
+	unsigned int i;
 
 	if (t->type != SND_TPLG_TYPE_LINK && t->type != SND_TPLG_TYPE_BE
 	    && t->type != SND_TPLG_TYPE_CC)
