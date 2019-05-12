@@ -12,4 +12,4 @@ cp -R release/include ../../../../../target/classes/linux64
 cd ..
 rm -R workdir
 
-return $r1
+exit ${r1}
